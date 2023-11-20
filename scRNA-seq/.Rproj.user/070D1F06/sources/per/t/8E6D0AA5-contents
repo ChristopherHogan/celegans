@@ -39,13 +39,16 @@ library(patchwork)
 ## Create Seurat objects from the filtered cell ranger data
 
 ```{r installdata}
-experiment_name <- "C. elegans scRNA-seq"
-dataset_loc <- "../ackley_data"
-ids <- c("GABA1", "GABA2")
+experiment_name <- "cholinergic" # or "gaba" 
+one_drive <- gsub("\\\\", "/", Sys.getenv("OneDrive"))
+data_dir <- paste(experiment_name, "_data", sep = "")
+data_dir_path <- file.path(one_drive, "research", data_dir)
+# TODO: uncomment when dataset 2 is ready
+ids <- c("1") #, "2")
 
 d10x.data <- lapply(ids, function(i) {
-  data <- Read10X_h5(file.path(dataset_loc, i, "outs",
-                               "filtered_feature_bc_matrix.h5"))
+  file_name <- paste(experiment_name, i, "_filtered_feature_bc_matrix.h5")
+  data <- Read10X_h5(file.path(data_dir_path, file_name))
 })
 names(d10x.data) <- ids
 
