@@ -1,0 +1,5 @@
+"0","# install dataset
+InstallData('ifnb')
+"
+"2","Error: No access to remote SeuratData repository, unable to install new datasets
+"

@@ -1,0 +1,6 @@
+"0","d10x.metrics <- lapply(ids, function(i){
+  metrics <- read.csv(file.path(dataset_loc, paste0(i,""/outs""), ""metrics_summary.csv""), colClasses = ""character"")
+})
+"
+"2","Error: object 'ids' not found
+"

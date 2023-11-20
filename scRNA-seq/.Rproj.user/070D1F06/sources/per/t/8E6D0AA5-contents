@@ -1,0 +1,143 @@
+---
+title: 'Introduction to scRNA-seq integration'
+output:
+  pdf_document: default
+  html_document:
+    theme: united
+date: 'Compiled: `r format(Sys.Date(), "%B %d, %Y")`'
+---
+
+```{r setup, include=FALSE}
+all_times <- list()  # store the time for each chunk
+knitr::knit_hooks$set(time_it = local({
+  now <- NULL
+  function(before, options) {
+    if (before) {
+      now <<- Sys.time()
+    } else {
+      res <- difftime(Sys.time(), now, units = "secs")
+      all_times[[options$label]] <<- res
+    }
+  }
+}))
+knitr::opts_chunk$set(
+  tidy = TRUE,
+  tidy.opts = list(width.cutoff = 95),
+  fig.width = 10,
+  message = FALSE,
+  warning = FALSE,
+  time_it = TRUE
+)
+```
+
+# scRNA-seq Integration with GABA1 and GABA2 data sets
+
+```{r imports}
+library(Seurat)
+library(patchwork)
+```
+## Create Seurat objects from the filtered cell ranger data
+
+```{r installdata}
+experiment_name <- "C. elegans scRNA-seq"
+dataset_loc <- "../ackley_data"
+ids <- c("GABA1", "GABA2")
+
+d10x.data <- lapply(ids, function(i) {
+  data <- Read10X_h5(file.path(dataset_loc, i, "outs",
+                               "filtered_feature_bc_matrix.h5"))
+})
+names(d10x.data) <- ids
+
+sobject.list <- lapply(ids, function(i) {
+  sobject <- CreateSeuratObject(counts = d10x.data[[i]], project = i)
+  # remember which id the data belongs to (useful after integration)
+  sobject[["group"]] <- rep(i, times = length(sobject@meta.data$nCount_RNA))
+  # This data appears to be already filtered. The highest percent.mt value
+  # is 2%.
+  sobject[["percent.mt"]] <- PercentageFeatureSet(sobject, pattern = "^MT")  
+  sobject
+})
+names(sobject.list) <- ids
+```
+
+## Normalization
+
+```{r init, results='hide', message=FALSE, fig.keep='none'}
+# normalize and identify variable features for each dataset independently
+sobject.list <- lapply(X = sobject.list, FUN = function(x) {
+  x <- NormalizeData(x)
+  x <- FindVariableFeatures(x, selection.method = "vst", nfeatures = 2000)
+})
+```
+
+## Highly variable features in single data sets
+
+```{r}
+top10 <- lapply(ids, function(i) {
+   head(VariableFeatures(sobject.list[[i]]), 10)
+})
+names(top10) <- ids
+top10
+```
+
+# Select features that are repeatedly variable across datasets for integration
+```{r}
+features <- SelectIntegrationFeatures(object.list = sobject.list)
+head(features, n = 25)
+```
+## Perform integration
+
+```{r find.anchors}
+grouped.anchors <- FindIntegrationAnchors(object.list = sobject.list, anchor.features = features)
+```
+
+```{r integrate.data}
+# this command creates an 'integrated' data assay
+grouped.combined <- IntegrateData(anchorset = grouped.anchors)
+```
+
+## Perform an integrated analysis
+
+Now we can run a single integrated analysis on all cells!
+
+```{r clustering, results='hide', message=FALSE}
+# specify that we will perform downstream analysis on the corrected data
+# note that the original unmodified data still resides in the 'RNA' assay
+DefaultAssay(grouped.combined) <- "integrated"
+
+# Run the standard workflow for visualization and clustering
+grouped.combined <- ScaleData(grouped.combined, verbose = FALSE)
+grouped.combined <- RunPCA(grouped.combined, npcs = 30, verbose = FALSE)
+grouped.combined <- RunUMAP(grouped.combined, reduction = "pca", dims = 1:30)
+grouped.combined <- FindNeighbors(grouped.combined, reduction = "pca", dims = 1:30)
+grouped.combined <- FindClusters(grouped.combined, resolution = 0.5)
+```
+
+```{r viz, results='hide', message=FALSE}
+# Visualization
+p1 <- DimPlot(grouped.combined, reduction = "umap", group.by = 'group')
+p2 <- DimPlot(grouped.combined, reduction = "umap", label = TRUE, repel = TRUE)
+p1 + p2
+```
+
+To visualize the two conditions side-by-side, we can use the `split.by` argument to show each condition colored by cluster. 
+
+```{r split.dim}
+DimPlot(grouped.combined, reduction = "umap", split.by = "group", label = TRUE)
+```
+
+## Identify conserved cell type markers
+
+```{r conserved.markers, warning=FALSE}
+# For performing differential expression after integration, we switch back to the original data
+DefaultAssay(grouped.combined) <- "RNA"
+
+# for (i in 0:19) {
+#   markers <- FindConservedMarkers(grouped.combined, ident.1 = i,
+#                                   grouping.var = "group", verbose = FALSE)
+#   df <- as.data.frame(markers)
+#   write.csv(df[0:25,], sprintf("./csv/pc%d.csv", i), row.names = TRUE)
+# }
+
+```
