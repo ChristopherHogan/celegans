@@ -1,12 +1,16 @@
 library(dplyr)
 library(qs)
 
+unreliable_genes = c("dpy-20", "cho-1", "C30A5.16", "eat-4", "saeg-2", "unc-47",
+                     "unc-119", "pha-1", "F38B6.2", "lin-15B", "lin-15A",
+                     "C30F8.3", "gcy-35", "unc-54", "cex-1", "rol-6", "unc-53")
 
+data_root <- file.path("D:", "sw", "CengenApp")
 # note the assignment in the global environment
 load_as_needed <- function(dataset){
   if(!exists(dataset)){
     assign(dataset,
-           qs::qread(paste0("data/", dataset, ".qs")),
+           qs::qread(paste0(data_root, "/data/", dataset, ".qs")),
            envir = .GlobalEnv)
   }
 }
@@ -142,7 +146,7 @@ expressedGenes <- function(input) {
 #    }))
   
   if (input$Tcell_name %in% colnames(th)) {
-    t4 <- dplyr::filter(th, threshold == input$Tcell_cut) %>% dplyr::select(gene_name, input$Tcell_name)
+    t4 <- dplyr::filter(th, threshold == input$Tcell_cut) %>% dplyr::select(gene_name, input$Tcell_name) %>% dplyr::filter(!gene_name %in% unreliable_genes)
     t4d <- dplyr::filter(th, threshold == input$Tcell_cut) %>% dplyr::select(gene_name, X, input$Tcell_name)
     t4 <- t4[rev(order(t4[, 2])), ]
     t4d <- t4d[rev(order(t4d[, 3])), ]
@@ -190,12 +194,17 @@ expressedGenes <- function(input) {
   }
   t4
 }
-  
-one_drive <- gsub("\\\\", "/", Sys.getenv("OneDrive"))
-pc_csv_dir <- file.path(one_drive, "research/scRNA-seq/csv")
 
-output_fname <- "analysis.txt"
-file.create(output_fname)
+project <- "cholinergic" # or gaba 
+one_drive <- gsub("\\\\", "/", Sys.getenv("OneDrive"))
+data_dir <- paste0(project, "_data")
+data_dir_path <- file.path(one_drive, "research", data_dir)
+pc_csv_dir <- file.path(data_dir_path, "csv")
+
+output_fname <- paste0(project, "_analysis.txt")
+output_path <- file.path(data_dir_path, output_fname)
+file.create(output_path)
+
 
 for (fname in list.files(pc_csv_dir, full.names = TRUE)) {
   result <- basename(fname)
@@ -228,7 +237,7 @@ for (fname in list.files(pc_csv_dir, full.names = TRUE)) {
       }
     }
   }
-  cat(result, file = output_fname, sep = "\n", append = TRUE)
+  cat(result, file = output_path, sep = "\n", append = TRUE)
 }
 
 

@@ -30,7 +30,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-# scRNA-seq Integration with GABA1 and GABA2 data sets
+# scRNA-seq Integration with cholinergic 1 and cholinergic 2 data sets
 
 ```{r imports}
 library(Seurat)
@@ -43,11 +43,10 @@ experiment_name <- "cholinergic" # or "gaba"
 one_drive <- gsub("\\\\", "/", Sys.getenv("OneDrive"))
 data_dir <- paste(experiment_name, "_data", sep = "")
 data_dir_path <- file.path(one_drive, "research", data_dir)
-# TODO: uncomment when dataset 2 is ready
-ids <- c("1") #, "2")
+ids <- c("1", "2")
 
 d10x.data <- lapply(ids, function(i) {
-  file_name <- paste(experiment_name, i, "_filtered_feature_bc_matrix.h5")
+  file_name <- paste(experiment_name, i, "_filtered_feature_bc_matrix.h5", sep="")
   data <- Read10X_h5(file.path(data_dir_path, file_name))
 })
 names(d10x.data) <- ids
@@ -136,11 +135,14 @@ DimPlot(grouped.combined, reduction = "umap", split.by = "group", label = TRUE)
 # For performing differential expression after integration, we switch back to the original data
 DefaultAssay(grouped.combined) <- "RNA"
 
-# for (i in 0:19) {
-#   markers <- FindConservedMarkers(grouped.combined, ident.1 = i,
-#                                   grouping.var = "group", verbose = FALSE)
-#   df <- as.data.frame(markers)
-#   write.csv(df[0:25,], sprintf("./csv/pc%d.csv", i), row.names = TRUE)
-# }
+csv_dir <- file.path(data_dir_path, "csv")
+ncomponents = nlevels(grouped.combined@meta.data[["seurat_clusters"]])
+
+for (i in 0:(ncomponents - 1)) {
+  markers <- FindConservedMarkers(grouped.combined, ident.1 = i,
+                                   grouping.var = "group", verbose = FALSE)
+  df <- as.data.frame(markers)
+  write.csv(df[0:25,], file.path(csv_dir, sprintf("pc%d.csv", i)), row.names = TRUE)
+}
 
 ```
