@@ -1,1 +1,0 @@
-{"frames":[{"func":"lapply(ids, function(i) {\n    metrics <- read.csv(file.path(dataset_loc, paste0(i, \"/outs\"), \n        \"metrics_summary.csv\"), colClasses = \"character\")\n})","file":"","line_number":0,"end_line_number":0,"character_number":0,"end_character_number":0}],"message":"Error: object 'ids' not found\n"}
